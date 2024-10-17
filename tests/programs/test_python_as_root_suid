@@ -1,0 +1,9 @@
+#!/usr/bin/exec -- /usr/bin/python3 -I
+
+import os
+
+assert os.geteuid() == 0
+assert os.getuid() == 1000
+
+assert os.getgid() == 1000
+assert os.getegid() == 1000

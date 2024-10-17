@@ -1,0 +1,4 @@
+- name: test_python_as_root_suid
+  permissions:
+    user: 0
+    mode: 04755
