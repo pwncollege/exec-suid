@@ -52,4 +52,5 @@ jobs:
         tag_name: ${{ steps.tag.outputs.tag }}
         name: "Release ${{ steps.tag.outputs.tag }}"
         body: "Automated release for tag ${{ steps.tag.outputs.tag }}."
+        make_latest: true
         files: ./exec
