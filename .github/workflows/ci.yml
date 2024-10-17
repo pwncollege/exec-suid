@@ -39,11 +39,17 @@ jobs:
         docker cp extract:/usr/bin/exec ./exec
         docker rm extract
 
+    - name: Generate tag
+      id: tag
+      run: |
+        TAG="v$(date +'%Y-%m-%d')-$(git rev-parse --short HEAD)"
+        echo "::set-output name=tag::$TAG"
+
     - name: Create release
       uses: softprops/action-gh-release@v1
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        tag_name: ${{ github.sha }}
-        name: "Release ${{ github.sha }}"
-        body: "Automated release for commit ${{ github.sha }}."
+        tag_name: ${{ steps.tag.outputs.tag }}
+        name: "Release ${{ steps.tag.outputs.tag }}"
+        body: "Automated release for tag ${{ steps.tag.outputs.tag }}."
         files: ./exec
