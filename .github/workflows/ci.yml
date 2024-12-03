@@ -15,7 +15,7 @@ jobs:
     - name: Build and test
       run: |
         docker build -t exec .
-        docker run exec
+        docker run --name exec exec
         docker cp exec:/usr/bin/exec ./exec
 
     - name: Release
