@@ -7,7 +7,7 @@ This project aims to provide a simple interface for running scripts as suid.
 For example, consider some `/flag` file, which has permissions `root:root 0400`, and we want non-root users to be able to read it if they know the password:
 
 ```python
-#!/usr/bin/exec -- /usr/bin/python3 -I
+#!/usr/bin/exec-suid -- /usr/bin/python3 -I
 
 import sys
 
@@ -20,16 +20,16 @@ print(open("/flag").read())
 
 Now, assuming root owns the file, root marks this script as suid (`chmod u+s`), and it will work as expected.
 
-Without `exec`, this would not work, as the python interpreter is not marked suid, and so even if the script is, it will not be able to read the file.
+Without `exec-suid`, this would not work, as the python interpreter is not marked suid, and so even if the script is, it will not be able to read the file.
 
 # Installation
 
 ```sh
-wget -O /usr/bin/exec http://github.com/pwncollege/exec/releases/latest/download/exec && \
-chmod 6755 /usr/bin/exec
+wget -O /usr/bin/exec-suid http://github.com/pwncollege/exec-suid/releases/latest/download/exec-suid && \
+chmod 6755 /usr/bin/exec-suid
 ```
 
-This will install the latest version of `exec` to `/usr/bin/exec`, and mark it as suid-root.
+This will install the latest version of `exec-suid` to `/usr/bin/exec-suid`, and mark it as suid-root.
 This program is designed to be run as root, and will not work properly if it is not.
 
 > **Warning**

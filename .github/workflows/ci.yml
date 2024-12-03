@@ -14,12 +14,12 @@ jobs:
 
     - name: Build and test
       run: |
-        docker build -t exec .
-        docker run --name exec exec
-        docker cp exec:/usr/bin/exec ./exec
+        docker build -t exec-suid .
+        docker run --name exec-suid exec-suid
+        docker cp exec-suid:/usr/bin/exec ./exec-suid
 
     - name: Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: ./exec
+        files: ./exec-suid
