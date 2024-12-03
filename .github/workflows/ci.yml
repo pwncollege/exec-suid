@@ -16,7 +16,7 @@ jobs:
       run: |
         docker build -t exec-suid .
         docker run --name exec-suid exec-suid
-        docker cp exec-suid:/usr/bin/exec ./exec-suid
+        docker cp exec-suid:/usr/bin/exec-suid ./exec-suid
 
     - name: Release
       uses: softprops/action-gh-release@v2
