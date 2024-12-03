@@ -33,6 +33,7 @@ This will install the latest version of `exec-suid` to `/usr/bin/exec-suid`, and
 This program is designed to be run as root, and will not work properly if it is not.
 
 > :warning: **Warning**
+>
 > Programs that are suid-root are inherently **dangerous**.
 > This program is no exception.
 > It is your responsibility to ensure that this program is secure and does not contain any vulnerabilities that will weaken your system's security.
