@@ -9,7 +9,7 @@ RUN $CC -o /usr/bin/exec-suid exec-suid.c
 
 FROM alpine:latest
 
-RUN apk add --no-cache python3 py3-pytest py3-yaml
+RUN apk add --no-cache bash python3 py3-pytest py3-yaml
 RUN adduser -D user
 
 COPY --from=builder /usr/bin/exec-suid /usr/bin/exec-suid
