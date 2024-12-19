@@ -2,6 +2,4 @@
 
 import os
 
-env = dict(os.environ)
-empty_env = {"LC_CTYPE": "C.UTF-8"}
-assert env == empty_env, f"Expected {env} to be {empty_env}"
+assert os.environ == {}, f"Expected {os.environ} to be {{}}"
