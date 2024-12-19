@@ -3,4 +3,4 @@
 import os
 
 fd_paths = [os.readlink(f"/proc/self/fd/{fd}") for fd in range(256) if os.path.exists(f"/proc/self/fd/{fd}")]
-assert fd_paths == []
+assert fd_paths == [], f"Expected {fd_paths} to be []"
