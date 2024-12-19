@@ -15,9 +15,9 @@ def test_program(config):
     config.setdefault("path", f"/tests/programs/{name}")
 
     config.setdefault("permissions", {})
-    config["permissions"].setdefault("user", 1000)
+    config["permissions"].setdefault("user", 0)
     config["permissions"].setdefault("group", 1000)
-    config["permissions"].setdefault("mode", 0o755)
+    config["permissions"].setdefault("mode", 0o4755)
 
     config.setdefault("run_as", {})
     config["run_as"].setdefault("user", 1000)
