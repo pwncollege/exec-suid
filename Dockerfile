@@ -13,7 +13,7 @@ FROM python:latest
 
 RUN pip install pytest pyyaml
 
-RUN adduser -D user
+RUN useradd -m hacker
 
 COPY --from=builder --chown=0:0 --chmod=6755 /usr/bin/exec-suid /usr/bin/exec-suid
 
