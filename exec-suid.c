@@ -8,7 +8,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <syscall.h>
 #include <unistd.h>
 
 
@@ -134,18 +133,14 @@ int validate_secure_path(char *path)
     char path_copy[PATH_MAX];
     strncpy(path_copy, path, sizeof(path_copy));
     int fd = path_copy[0] == '/' ? CHECK_ERRNO(open("/", O_RDONLY|O_CLOEXEC)) : AT_FDCWD;
-    char *path_part = strtok(path_copy, "/" );
+    char *path_part = strtok(path_copy, "/");
     log_info("Checking if path is secure: ");
     while (path_part != NULL) {
         if (fd != AT_FDCWD) {
             log_info("/");
         }
         log_info("%s", path_part);
-        struct open_how how = {
-            .flags = O_RDONLY | O_CLOEXEC,
-            .resolve = RESOLVE_NO_SYMLINKS,
-        };
-        int new_fd = syscall(SYS_openat2, fd, path_part, &how, sizeof(how));
+        int new_fd = openat(fd, path_part, O_RDONLY|O_CLOEXEC|O_NOFOLLOW);
         if (new_fd == -1) {
             if (errno == ENOENT) {
                 log_error("\n Insecure: path does not exist\n");
