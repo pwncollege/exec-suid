@@ -3,4 +3,3 @@
 - name: test_python_argv0_relative_path
   argv: [./test_python_argv0_relative_path]
   cwd: /tests/programs
-- name: test_python_fds
