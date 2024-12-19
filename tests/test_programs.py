@@ -13,6 +13,8 @@ def test_program(config):
     name = config["name"]
 
     config.setdefault("path", f"/tests/programs/{name}")
+    config.setdefault("argv", [config["path"]])
+    config.setdefault("cwd", "/")
 
     config.setdefault("permissions", {})
     config["permissions"].setdefault("user", 0)
@@ -29,7 +31,8 @@ def test_program(config):
     def preexec_fn():
         os.setgid(config["run_as"]["group"])
         os.setuid(config["run_as"]["user"])
+        os.chdir(config["cwd"])
 
     subprocess.run(["ls", "-l", config["path"]])
 
-    subprocess.run(config["path"], preexec_fn=preexec_fn, check=True)
+    subprocess.run(*config["argv"], preexec_fn=preexec_fn, check=True)
