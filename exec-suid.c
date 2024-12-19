@@ -1,7 +1,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <linux/openat2.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -13,9 +12,9 @@
 #include <unistd.h>
 
 
+#define SYS_openat2 437
 #define HEADER_SIZE 1024
 
-#define AT_EMPTY_PATH 0x1000
 
 #define CHECK_ERRNO(call) ({ \
     __typeof__(call) result = (call); \
