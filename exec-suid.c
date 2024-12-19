@@ -47,7 +47,7 @@ void log_error(const char *format, ...)
 
 void parse_shebang(int fd, char *exec_argv[], char *script_argv[])
 {
-    char *header = malloc(HEADER_SIZE);
+    char header[HEADER_SIZE];
     FILE *file = fdopen(fd, "r");
     if (fgets(header, HEADER_SIZE, file) == NULL)
         log_error("Failed to read header: %s\n", strerror(errno));
