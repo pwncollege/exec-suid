@@ -11,9 +11,7 @@
 #include <unistd.h>
 
 
-#define SYS_openat2 437
 #define HEADER_SIZE 1024
-
 
 #define CHECK_ERRNO(call) ({ \
     __typeof__(call) result = (call); \

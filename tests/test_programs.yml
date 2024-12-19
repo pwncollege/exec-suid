@@ -4,3 +4,5 @@
   argv: [./test_python_argv0_relative_path]
   cwd: /tests/programs
 - name: test_python_empty_env
+- name: test_sh
+- name: test_bash
