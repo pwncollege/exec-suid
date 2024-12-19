@@ -229,7 +229,7 @@ int main(int argc, char *argv[], char *envp[])
     CHECK_ERRNO(setegid(new_egid));
     CHECK_ERRNO(seteuid(new_euid));
 
-    CHECK_ERRNO(execve(script_argv[0], script_argv, envp));
+    CHECK_ERRNO(execve(script_argv[0], script_argv, NULL));
 
     return 0;
 }

@@ -1,0 +1,5 @@
+#!/usr/bin/exec-suid -- /usr/bin/python3 -I
+
+import os
+
+assert os.environ == {}, f"Expected {os.environ} to be {{}}"
