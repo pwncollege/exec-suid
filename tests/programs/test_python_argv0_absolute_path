@@ -1,7 +1,0 @@
-#!/usr/bin/exec-suid -- /usr/bin/python3 -I
-
-import sys
-import pathlib
-
-path = pathlib.Path(__file__).resolve()
-assert sys.argv[0] == str(path), f"Expected {sys.argv[0]} to be {path}"

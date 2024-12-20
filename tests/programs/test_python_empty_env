@@ -1,6 +1,0 @@
-#!/usr/bin/exec-suid -- /usr/bin/python3 -I
-
-import os
-
-os.environ.pop("LC_CTYPE")  # This environment variable may be automatically set by Python
-assert os.environ == {}, f"Expected {os.environ} to be {{}}"

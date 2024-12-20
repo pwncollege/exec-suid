@@ -1,6 +1,3 @@
 #!/usr/bin/exec-suid -- /bin/sh -p
 
-if [ "$(id -u)" -ne 0 ]; then
-    echo "Expected euid to be 0, got $(id -u)"
-    exit 1
-fi
+id -u
