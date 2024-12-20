@@ -6,7 +6,7 @@ RUN rustup target add x86_64-unknown-linux-musl
 WORKDIR /usr/src/exec-suid
 COPY Cargo.toml ./
 COPY src ./src
-RUN find . && cargo build --release --target x86_64-unknown-linux-musl
+RUN cargo build --release --target x86_64-unknown-linux-musl
 
 FROM python:latest
 RUN pip install pytest pyyaml

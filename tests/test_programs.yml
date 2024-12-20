@@ -6,3 +6,4 @@
 - name: test_python_empty_env
 - name: test_sh
 - name: test_bash
+- name: test_python_opt_real
