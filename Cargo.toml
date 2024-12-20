@@ -1,0 +1,13 @@
+[package]
+name = "exec-suid"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+opt-level = "z"       # Optimize for size
+lto = true            # Enable Link Time Optimization
+codegen-units = 1     # Reduce parallel code generation units (improves LTO)
+strip = "symbols"     # Strip symbols during compilation
+
+[dependencies]
+nix = { version = "0.29", features = ["fs", "process", "user"] }
