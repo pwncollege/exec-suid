@@ -5,7 +5,9 @@ import os
 ruid, euid, suid = os.getresuid()
 assert euid == 0, f"Expected euid to be 0, got {euid}"
 assert ruid == 1000, f"Expected ruid to be 1000, got {ruid}"
+assert suid == 1000, f"Expected suid to be 1000, got {suid}"
 
 rgid, egid, sgid = os.getresgid()
 assert egid == 1000, f"Expected egid to be 1000, got {egid}"
 assert rgid == 1000, f"Expected rgid to be 1000, got {rgid}"
+assert sgid == 1000, f"Expected sgid to be 1000, got {sgid}"
