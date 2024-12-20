@@ -1,38 +1,38 @@
+import json
 import subprocess
 import os
 
-import pytest
-import yaml
+
+def preexec_fn(uid=1000, gid=1000, cwd="/"):
+    os.setgid(gid)
+    os.setuid(uid)
+    os.chdir(cwd)
 
 
-test_configs = yaml.safe_load(open("/tests/test_programs.yml"))
+def test_python():
+    result = json.loads(subprocess.check_output("/tests/programs/test_python", preexec_fn=preexec_fn))
+    result["env"].pop("LC_CTYPE")  # This environment variable may be automatically set by Python"
+    assert result == dict(argv=["/tests/programs/test_python"],
+                          env={},
+                          uid=[1000, 0, 0],
+                          gid=[1000, 1000, 1000])
 
 
-@pytest.mark.parametrize("config", test_configs, ids=[test_config["name"] for test_config in test_configs])
-def test_program(config):
-    name = config["name"]
+def test_python_relative():
+    result = json.loads(subprocess.check_output("./test_python", preexec_fn=lambda: preexec_fn(cwd="/tests/programs")))
+    assert result["argv"] == ["./test_python"]
 
-    config.setdefault("path", f"/tests/programs/{name}")
-    config.setdefault("argv", [config["path"]])
-    config.setdefault("cwd", "/")
 
-    config.setdefault("permissions", {})
-    config["permissions"].setdefault("user", 0)
-    config["permissions"].setdefault("group", 1000)
-    config["permissions"].setdefault("mode", 0o4755)
+def test_sh():
+    result = int(subprocess.check_output("/tests/programs/test_sh", preexec_fn=preexec_fn))
+    assert result == 0
 
-    config.setdefault("run_as", {})
-    config["run_as"].setdefault("user", 1000)
-    config["run_as"].setdefault("group", 1000)
 
-    os.chown(config["path"], config["permissions"]["user"], config["permissions"]["group"])
-    os.chmod(config["path"], config["permissions"]["mode"])
+def test_bash():
+    result = int(subprocess.check_output("/tests/programs/test_bash", preexec_fn=preexec_fn))
+    assert result == 0
 
-    def preexec_fn():
-        os.setgid(config["run_as"]["group"])
-        os.setuid(config["run_as"]["user"])
-        os.chdir(config["cwd"])
 
-    subprocess.run(["ls", "-l", config["path"]])
-
-    subprocess.run(*config["argv"], preexec_fn=preexec_fn, check=True)
+def test_opt_real():
+    result = json.loads(subprocess.check_output("/tests/programs/test_opt_real", preexec_fn=preexec_fn))
+    assert result["uid"] == [0, 0, 0]

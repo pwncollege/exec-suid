@@ -9,9 +9,11 @@ COPY src ./src
 RUN cargo build --release --target x86_64-unknown-linux-musl
 
 FROM python:latest
-RUN pip install pytest pyyaml
+RUN pip install pytest
 RUN useradd -m hacker
 COPY --from=builder --chmod=6755 /usr/src/exec-suid/target/x86_64-unknown-linux-musl/release/exec-suid /usr/bin/exec-suid
 COPY tests /tests
+
+RUN chmod 4755 /tests/programs/*
 
 CMD ["pytest", "-v", "/tests"]

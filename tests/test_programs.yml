@@ -1,9 +1,0 @@
-- name: test_python_euid
-- name: test_python_argv0_absolute_path
-- name: test_python_argv0_relative_path
-  argv: [./test_python_argv0_relative_path]
-  cwd: /tests/programs
-- name: test_python_empty_env
-- name: test_sh
-- name: test_bash
-- name: test_python_opt_real
