@@ -24,6 +24,13 @@ Without `exec-suid`, this would not work, as the python interpreter is not marke
 
 # Installation
 
+> :warning: **Warning**
+>
+> Programs that are suid-root are inherently **dangerous**.
+> This program is no exception.
+> It is your responsibility to ensure that this program is secure and does not contain any vulnerabilities that will weaken your system's security.
+> If you are not comfortable with this, do not install this program.
+
 ```sh
 wget -O /usr/bin/exec-suid http://github.com/pwncollege/exec-suid/releases/latest/download/exec-suid && \
 chmod 6755 /usr/bin/exec-suid
@@ -31,13 +38,6 @@ chmod 6755 /usr/bin/exec-suid
 
 This will install the latest version of `exec-suid` to `/usr/bin/exec-suid`, and mark it as suid-root.
 This program is designed to be run as root, and will not work properly if it is not.
-
-> :warning: **Warning**
->
-> Programs that are suid-root are inherently **dangerous**.
-> This program is no exception.
-> It is your responsibility to ensure that this program is secure and does not contain any vulnerabilities that will weaken your system's security.
-> If you are not comfortable with this, do not install this program.
 
 ## Docker
 
