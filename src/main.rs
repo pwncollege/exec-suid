@@ -44,11 +44,11 @@ fn main() {
     let new_euid = if mode.contains(Mode::S_ISUID) { Uid::from_raw(stat.st_uid) } else { real_uid };
     let new_egid = if mode.contains(Mode::S_ISGID) { Gid::from_raw(stat.st_gid) } else { real_gid };
     let (new_ruid, new_rgid) = if matches.opt_present("real") { (new_euid, new_egid) } else { (real_uid, real_gid) };
-    if let Err(err) = unistd::setresgid(new_rgid, new_egid, Gid::from_raw(-1)) {
+    if let Err(err) = unistd::setresgid(new_rgid, new_egid, Gid::from_raw(u32::MAX)) {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
     }
-    if let Err(err) = unistd::setresuid(new_ruid, new_euid, Uid::from_raw(-1)) {
+    if let Err(err) = unistd::setresuid(new_ruid, new_euid, Uid::from_raw(u32::MAX)) {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
     }
