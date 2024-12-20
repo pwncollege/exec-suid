@@ -51,9 +51,26 @@ ADD --chown=0:0 --chmod=6755 http://github.com/pwncollege/exec-suid/releases/lat
 ```
 # Usage
 
-The interface to `exec-suid` is the shebang line of the script you want to run suid. Absolute paths are crucial, in a suid context, we cannot trust the PATH environment variable. You may need to include additional arguments to the interpreter, in order to make it work properly, or to ensure that it is secure.
+The interface to `exec-suid` is the shebang line of the script you want to run suid. Absolute paths are crucial, in a suid context, we cannot trust the PATH environment variable.
 
-## Python
+## Options
+
+### `--real`
+
+By default, `exec-suid` will elevate only the effective user id (and saved user id), but not the real id. This is the same behavior as a standard suid program. In order to also elevate the real user id, you can use the `--real` option.
+
+For example:
+```
+#!/usr/bin/exec-suid --real -- /bin/bash
+```
+
+This may be necessary if the interpreter you are using automatically sets the effective user id to the real user id, like `bash` (you can alternatively use the `-p` option to disable this behavior, see [below](#Bash)). This also has implications for the ["dumpable" process attribute](https://man7.org/linux/man-pages/man2/PR_SET_DUMPABLE.2const.html) which may be relevant in some contexts (e.g., namespaces, ptrace).
+
+## Interpreters
+
+Depending on the interpreter you are using, you may need to include additional arguments to the interpreter, in order to make it work properly, or to ensure that it is secure.
+
+### Python
 
 ```
 #!/usr/bin/exec-suid -- /usr/bin/python3 -I
@@ -65,7 +82,7 @@ The interface to `exec-suid` is the shebang line of the script you want to run s
 
 See [https://docs.python.org/3/using/cmdline.html#cmdoption-I](https://docs.python.org/3/using/cmdline.html#cmdoption-I).
 
-## Bash
+### Bash
 
 ```
 #!/usr/bin/exec-suid -- /bin/bash -p
