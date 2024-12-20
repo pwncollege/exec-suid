@@ -14,7 +14,7 @@ def test_python():
     result["env"].pop("LC_CTYPE")  # This environment variable may be automatically set by Python"
     assert result == dict(argv=["/tests/programs/test_python"],
                           env={},
-                          uid=[0, 1000, 0],
+                          uid=[1000, 0, 0],
                           gid=[1000, 1000, 1000])
 
 
