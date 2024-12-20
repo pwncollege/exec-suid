@@ -1,3 +1,4 @@
+use getopts::Options;
 use nix::sys::stat::{self, Mode};
 use nix::unistd::{self, Uid, Gid};
 use std::{env, process};
@@ -27,6 +28,10 @@ fn main() {
         process::exit(1);
     }
 
+    let mut opts = Options::new();
+    opts.optflag("", "real", "Set real user and group IDs");
+    let matches = opts.parse(&exec_argv[1..]).unwrap();
+
     script_argv.push(path.to_str().unwrap().to_string());
 
     let stat = stat::stat(path).unwrap_or_else(|err| {
@@ -34,13 +39,16 @@ fn main() {
         process::exit(1);
     });
     let mode = stat::Mode::from_bits_truncate(stat.st_mode);
-    let new_euid = if mode.contains(Mode::S_ISUID) { Uid::from_raw(stat.st_uid) } else { Uid::current() };
-    let new_egid = if mode.contains(Mode::S_ISGID) { Gid::from_raw(stat.st_gid) } else { Gid::current() };
-    if let Err(err) = unistd::setegid(new_egid) {
+    let real_uid = Uid::current();
+    let real_gid = Gid::current();
+    let new_euid = if mode.contains(Mode::S_ISUID) { Uid::from_raw(stat.st_uid) } else { real_uid };
+    let new_egid = if mode.contains(Mode::S_ISGID) { Gid::from_raw(stat.st_gid) } else { real_gid };
+    let (new_ruid, new_rgid) = if matches.opt_present("real") { (new_euid, new_egid) } else { (real_uid, real_gid) };
+    if let Err(err) = unistd::setresgid(new_rgid, new_egid, real_gid) {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
     }
-    if let Err(err) = unistd::seteuid(new_euid) {
+    if let Err(err) = unistd::setresuid(new_ruid, new_euid, real_uid) {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
     }
