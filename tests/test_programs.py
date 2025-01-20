@@ -23,6 +23,11 @@ def test_python_relative():
     assert result["argv"] == ["./test_python"]
 
 
+def test_python_argv():
+    result = json.loads(subprocess.check_output(["/tests/programs/test_python", "test"], preexec_fn=preexec_fn))
+    assert result["argv"] == ["/tests/programs/test_python_argv", "test"]
+
+
 def test_sh():
     result = int(subprocess.check_output("/tests/programs/test_sh", preexec_fn=preexec_fn))
     assert result == 0
