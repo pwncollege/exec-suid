@@ -25,7 +25,7 @@ def test_python_relative():
 
 def test_python_argv():
     result = json.loads(subprocess.check_output(["/tests/programs/test_python", "test"], preexec_fn=preexec_fn))
-    assert result["argv"] == ["/tests/programs/test_python_argv", "test"]
+    assert result["argv"] == ["/tests/programs/test_python", "test"]
 
 
 def test_sh():
