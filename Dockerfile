@@ -16,4 +16,4 @@ COPY tests /tests
 
 RUN chmod 4755 /tests/programs/*
 
-CMD ["pytest", "-vv", "/tests"]
+CMD ["pytest", "-v", "/tests"]

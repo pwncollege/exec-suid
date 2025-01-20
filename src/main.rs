@@ -33,6 +33,7 @@ fn main() {
     let matches = opts.parse(&exec_argv[1..]).unwrap();
 
     script_argv.push(path.to_str().unwrap().to_string());
+    script_argv.extend_from_slice(&args[if args.len() == 2 { 2.. } else { 3.. }]);
 
     let stat = stat::stat(path).unwrap_or_else(|err| {
         eprintln!("{}: {}", path.display(), err);
