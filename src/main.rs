@@ -30,6 +30,7 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optflag("", "real", "Set real user and group IDs");
+    opts.optopt("", "environ", "Environment policy: safe (default), none, or all", "MODE");
     let matches = opts.parse(&exec_argv[1..]).unwrap();
 
     script_argv.push(path.to_str().unwrap().to_string());
@@ -54,10 +55,27 @@ fn main() {
         process::exit(1);
     }
 
+    let env: Vec<CString> = match matches.opt_str("environ").unwrap_or_else(|| "safe".to_string()).as_str() {
+        "none" => Vec::new(),
+        "all" => {
+            env::vars()
+                .map(|(key, value)| CString::new(format!("{}={}", key, value)).unwrap())
+                .collect()
+        },
+        "safe" | _ => {
+            let whitelist = ["HOME", "TERM", "LANG"];
+            whitelist.iter().filter_map(|&var| {
+                env::var(var).ok().map(|value| {
+                    CString::new(format!("{}={}", var, value)).unwrap()
+                })
+            }).collect()
+        }
+    };
+
     unistd::execve(
         &CString::new(script_argv[0].clone()).unwrap(),
         &script_argv.iter().map(|arg| CString::new(arg.as_str()).unwrap()).collect::<Vec<_>>(),
-        &[] as &[CString],
+        &env.iter().map(|var| var.as_c_str()).collect::<Vec<_>>(),
     ).unwrap_or_else(|err| {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
