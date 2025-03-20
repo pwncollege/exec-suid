@@ -10,10 +10,11 @@ def preexec_fn(uid=1000, gid=1000, cwd="/"):
 
 
 def test_python():
+    safe_env_vars = ["HOME", "TERM", "LANG"]
     result = json.loads(subprocess.check_output("/tests/programs/test_python", preexec_fn=preexec_fn))
-    result["env"].pop("LC_CTYPE")  # This environment variable may be automatically set by Python"
+    result["env"].pop("LC_CTYPE")  # This environment variable may be automatically set by Python
     assert result == dict(argv=["/tests/programs/test_python"],
-                          env={},
+                          env={key: os.environ[key] for key in safe_env_vars if key in os.environ},
                           uid=[1000, 0, 0],
                           gid=[1000, 1000, 1000])
 
