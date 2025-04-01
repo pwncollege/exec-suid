@@ -1,0 +1,12 @@
+#!/usr/bin/exec-suid --environ=all -- /usr/bin/python3 -I
+
+import json
+import os
+import sys
+
+json.dump(dict(
+    argv=sys.argv,
+    env=dict(os.environ),
+    uid=os.getresuid(),
+    gid=os.getresgid(),
+), sys.stdout)

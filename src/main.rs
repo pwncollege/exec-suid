@@ -1,6 +1,6 @@
 use getopts::Options;
 use nix::sys::stat::{self, Mode};
-use nix::unistd::{self, Uid, Gid};
+use nix::unistd::{self, Uid, Gid, User};
 use std::{env, process};
 use std::ffi::CString;
 use std::fs::File;
@@ -30,6 +30,7 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optflag("", "real", "Set real user and group IDs");
+    opts.optopt("", "environ", "Environment policy: safe (default), none, or all", "MODE");
     let matches = opts.parse(&exec_argv[1..]).unwrap();
 
     script_argv.push(path.to_str().unwrap().to_string());
@@ -45,6 +46,17 @@ fn main() {
     let new_euid = if mode.contains(Mode::S_ISUID) { Uid::from_raw(stat.st_uid) } else { real_uid };
     let new_egid = if mode.contains(Mode::S_ISGID) { Gid::from_raw(stat.st_gid) } else { real_gid };
     let (new_ruid, new_rgid) = if matches.opt_present("real") { (new_euid, new_egid) } else { (real_uid, real_gid) };
+
+    let env: Vec<CString> = match matches.opt_str("environ").unwrap_or_else(|| "safe".to_string()).as_str() {
+        "none" => Vec::new(),
+        "all" => {
+            env::vars()
+                .map(|(key, value)| CString::new(format!("{}={}", key, value)).unwrap())
+                .collect()
+        },
+        "safe" | _ => build_safe_env(new_euid),
+    };
+
     if let Err(err) = unistd::setresgid(new_rgid, new_egid, Gid::from_raw(u32::MAX)) {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
@@ -57,7 +69,7 @@ fn main() {
     unistd::execve(
         &CString::new(script_argv[0].clone()).unwrap(),
         &script_argv.iter().map(|arg| CString::new(arg.as_str()).unwrap()).collect::<Vec<_>>(),
-        &[] as &[CString],
+        &env.iter().map(|var| var.as_c_str()).collect::<Vec<_>>(),
     ).unwrap_or_else(|err| {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
@@ -127,4 +139,40 @@ fn check_path_in_nosuid_mount(path: &Path) -> io::Result<bool> {
     } else {
         Err(io::Error::new(io::ErrorKind::Other, "File not in any mount"))
     }
+}
+
+fn build_safe_env(uid: Uid) -> Vec<CString> {
+    let mut env_vars = Vec::new();
+
+    let target_user = User::from_uid(uid)
+        .expect(&format!("Failed to look up user by uid: {}", uid))
+        .expect(&format!("No user found for uid: {}", uid));
+
+    let init_environ = std::fs::read("/proc/1/environ")
+        .expect("Failed to read init environ");
+    let path_value = String::from_utf8_lossy(&init_environ)
+        .split('\0')
+        .find(|s| s.starts_with("PATH="))
+        .expect("PATH not found in init environ")
+        .to_string();
+    env_vars.push(CString::new(path_value).unwrap());
+
+    env_vars.push(CString::new(format!("LOGNAME={}", target_user.name)).unwrap());
+    env_vars.push(CString::new(format!("USER={}", target_user.name)).unwrap());
+    env_vars.push(CString::new(format!("HOME={}", target_user.dir.display())).unwrap());
+    env_vars.push(CString::new(format!("SHELL={}", target_user.shell.display())).unwrap());
+    env_vars.push(CString::new(format!("MAIL=/var/mail/{}", target_user.name)).unwrap());
+
+    let term = std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string());
+    env_vars.push(CString::new(format!("TERM={}", term)).unwrap());
+    let lang = std::env::var("LANG").unwrap_or_else(|_| "en_US.UTF-8".to_string());
+    env_vars.push(CString::new(format!("LANG={}", lang)).unwrap());
+
+    for (key, value) in std::env::vars() {
+        if ["LANGUAGE", "TZ", "LS_COLORS"].contains(&key.as_str()) || key.starts_with("LC_") {
+            env_vars.push(CString::new(format!("{}={}", key, value)).unwrap());
+        }
+    }
+
+    env_vars
 }
