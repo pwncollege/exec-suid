@@ -169,7 +169,7 @@ fn build_safe_env(uid: Uid) -> Vec<CString> {
     env_vars.push(CString::new(format!("LANG={}", lang)).unwrap());
 
     for (key, value) in std::env::vars() {
-        if ["LANGUAGE", "TZ", "LS_COLORS"].contains(&key.as_str()) || key.starts_with("LC_") {
+        if ["LANGUAGE", "TZ", "DISPLAY", "LS_COLORS"].contains(&key.as_str()) || key.starts_with("LC_") {
             env_vars.push(CString::new(format!("{}={}", key, value)).unwrap());
         }
     }
