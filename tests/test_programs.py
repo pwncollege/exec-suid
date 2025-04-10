@@ -39,7 +39,7 @@ def test_python_env_empty():
         "SHELL": root_user.pw_shell,
         "MAIL": f"/var/mail/{root_user.pw_name}",
         "TERM": "unknown",
-        "LANG": "en_US.UTF-8",
+        "LANG": "C.UTF-8",
     }
 
 

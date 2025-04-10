@@ -165,7 +165,7 @@ fn build_safe_env(uid: Uid) -> Vec<CString> {
 
     let term = std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string());
     env_vars.push(CString::new(format!("TERM={}", term)).unwrap());
-    let lang = std::env::var("LANG").unwrap_or_else(|_| "en_US.UTF-8".to_string());
+    let lang = std::env::var("LANG").unwrap_or_else(|_| "C.UTF-8".to_string());
     env_vars.push(CString::new(format!("LANG={}", lang)).unwrap());
 
     for (key, value) in std::env::vars() {
