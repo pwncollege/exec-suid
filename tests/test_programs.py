@@ -30,7 +30,6 @@ def test_python_argv():
 def test_python_env_empty():
     root_user = pwd.getpwnam("root")
     result = json.loads(subprocess.check_output("/tests/programs/test_python", env={}, preexec_fn=preexec_fn))
-    result["env"].pop("LC_CTYPE")  # This environment variable may be automatically set by Python
     assert result["env"] == {
         "PATH": os.environ.get("PATH"),
         "LOGNAME": root_user.pw_name,
