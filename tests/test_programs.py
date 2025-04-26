@@ -32,11 +32,9 @@ def test_python_env_empty():
     result = json.loads(subprocess.check_output("/tests/programs/test_python", env={}, preexec_fn=preexec_fn))
     assert result["env"] == {
         "PATH": os.environ.get("PATH"),
-        "LOGNAME": root_user.pw_name,
         "USER": root_user.pw_name,
         "HOME": root_user.pw_dir,
         "SHELL": root_user.pw_shell,
-        "MAIL": f"/var/mail/{root_user.pw_name}",
         "TERM": "unknown",
         "LANG": "C.UTF-8",
     }

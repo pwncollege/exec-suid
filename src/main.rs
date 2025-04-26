@@ -157,11 +157,9 @@ fn build_safe_env(uid: Uid) -> Vec<CString> {
         .to_string();
     env_vars.push(CString::new(path_value).unwrap());
 
-    env_vars.push(CString::new(format!("LOGNAME={}", target_user.name)).unwrap());
     env_vars.push(CString::new(format!("USER={}", target_user.name)).unwrap());
     env_vars.push(CString::new(format!("HOME={}", target_user.dir.display())).unwrap());
     env_vars.push(CString::new(format!("SHELL={}", target_user.shell.display())).unwrap());
-    env_vars.push(CString::new(format!("MAIL=/var/mail/{}", target_user.name)).unwrap());
 
     let term = std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string());
     env_vars.push(CString::new(format!("TERM={}", term)).unwrap());

@@ -51,20 +51,8 @@ ADD --chown=0:0 --chmod=6755 http://github.com/pwncollege/exec-suid/releases/lat
 ```
 # Usage
 
-The interface to `exec-suid` is the shebang line of the script you want to run suid. Absolute paths are crucial, in a suid context, we cannot trust the PATH environment variable.
-
-## Options
-
-### `--real`
-
-By default, `exec-suid` will elevate only the effective user id (and saved user id), but not the real id. This is the same behavior as a standard suid program. In order to also elevate the real user id, you can use the `--real` option.
-
-For example:
-```
-#!/usr/bin/exec-suid --real -- /bin/bash
-```
-
-This may be necessary if the interpreter you are using automatically sets the effective user id to the real user id, like `bash` (you can alternatively use the `-p` option to disable this behavior, see [below](#Bash)). This also has implications for the ["dumpable" process attribute](https://man7.org/linux/man-pages/man2/PR_SET_DUMPABLE.2const.html) which may be relevant in some contexts (e.g., namespaces, ptrace).
+The interface to `exec-suid` is the shebang line of the script you want to run suid.
+Absolute paths are crucial, in a suid context, we cannot trust the PATH environment variable.
 
 ## Interpreters
 
@@ -93,3 +81,43 @@ See [https://docs.python.org/3/using/cmdline.html#cmdoption-I](https://docs.pyth
 > If the shell is started with the effective user (group) id not equal to the real user (group) id, and the -p option is not supplied, no startup files are read, shell functions are not inherited from the environment, the SHELLOPTS, BASHOPTS, CDPATH, and GLOBIGNORE variables, if they appear in the environment, are ignored, and the effective user id is set to the real user id. If the -p option is supplied at invocation, the startup behavior is the same, but the effective user id is not reset.
 
 See [https://www.man7.org/linux/man-pages/man1/bash.1.html#INVOCATION](https://www.man7.org/linux/man-pages/man1/bash.1.html#INVOCATION)
+
+## Options
+
+### Effective vs Real (`--real`)
+
+By default, `exec-suid` will elevate only the effective user id (and saved user id), but not the real id.
+This is the same behavior as a standard suid program.
+In order to also elevate the real user id, you can use the `--real` option.
+
+For example:
+```
+#!/usr/bin/exec-suid --real -- /bin/bash
+```
+
+This may be necessary if the interpreter you are using automatically sets the effective user id to the real user id, like `bash` (you can alternatively use the `-p` option to disable this behavior, see [Bash Interpreter](#Bash)).
+
+This also has implications for the ["dumpable" process attribute](https://man7.org/linux/man-pages/man2/PR_SET_DUMPABLE.2const.html) which may be relevant in some contexts (e.g., namespaces, ptrace).
+
+### Environment Handling (`--environ`)
+
+By default, `exec-suid` carefully controls the environment variables passed to the invoked script to mitigate potential security risks.
+However, depending on your use case, you can customize this behavior using the `--environ` option:
+
+- **`safe` (default)**: Restricts environment variables to a safe subset:
+  - Inherited from init process (pid 1): `PATH`.
+  - From (new) effective user's `/etc/passwd` entry: `USER`, `HOME`, `SHELL`.
+  - Preserved if set, otherwise default values: `TERM` (default: `unknown`), `LANG` (default: `C.UTF-8`).
+  - Preserved if set, otherwise unset: `LANGUAGE`, `TZ`, `DISPLAY`, `LS_COLORS`, and all `LC_*` variables.
+  - All other variables unset.
+
+- **`none`**: All environment variables are unset.
+
+- **`all`**: All environment variables are preserved. This mode is **extremely dangerous**, since it allows a malicious user to control dangerous environment variables, such as `PATH` or `LD_PRELOAD`, which can lead to arbitrary code execution, or otherwise dramatically alter the behavior of the script in unexpected ways.
+
+For example:
+```
+#!/usr/bin/exec-suid --environ=none -- /usr/bin/python3 -I
+```
+
+This would run your python script with no inherited environment variables.
