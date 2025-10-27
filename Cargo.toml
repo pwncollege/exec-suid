@@ -11,4 +11,4 @@ strip = "symbols"
 
 [dependencies]
 getopts = "0.2"
-nix = { version = "0.29", features = ["fs", "process", "user"] }
+nix = { version = "0.29", features = ["fs", "process", "user", "resource"] }

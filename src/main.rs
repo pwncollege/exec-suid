@@ -1,4 +1,5 @@
 use getopts::Options;
+use nix::sys::resource::{self, Resource, rlim_t};
 use nix::sys::stat::{self, Mode};
 use nix::unistd::{self, Uid, Gid, User};
 use std::{env, process};
@@ -56,6 +57,11 @@ fn main() {
         },
         "safe" | _ => build_safe_env(new_euid),
     };
+
+    if let Err(err) = resource::setrlimit(Resource::RLIMIT_CORE, 0 as rlim_t, 0 as rlim_t) {
+        eprintln!("{}: {}", path.display(), err);
+        process::exit(1);
+    }
 
     if let Err(err) = unistd::setresgid(new_rgid, new_egid, Gid::from_raw(u32::MAX)) {
         eprintln!("{}: {}", path.display(), err);
