@@ -1,5 +1,5 @@
 use getopts::Options;
-use nix::sys::resource::{setrlimit, Resource, Rlim};
+use nix::sys::resource::{self, Resource, rlim_t};
 use nix::sys::stat::{self, Mode};
 use nix::unistd::{self, Uid, Gid, User};
 use std::{env, process};
@@ -58,7 +58,7 @@ fn main() {
         "safe" | _ => build_safe_env(new_euid),
     };
 
-    if let Err(err) = setrlimit(Resource::RLIMIT_CORE, Rlim::from_raw(0), Rlim::from_raw(0)) {
+    if let Err(err) = resource::setrlimit(Resource::RLIMIT_CORE, 0 as rlim_t, 0 as rlim_t) {
         eprintln!("{}: {}", path.display(), err);
         process::exit(1);
     }
