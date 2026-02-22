@@ -1,3 +1,0 @@
-#!/usr/bin/exec-suid -- /bin/bash -p
-
-id -u
