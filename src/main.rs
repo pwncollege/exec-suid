@@ -72,6 +72,8 @@ fn main() {
         process::exit(1);
     }
 
+    stat::umask(Mode::from_bits_truncate(0o022));
+
     unistd::execve(
         &CString::new(script_argv[0].clone()).unwrap(),
         &script_argv.iter().map(|arg| CString::new(arg.as_str()).unwrap()).collect::<Vec<_>>(),
