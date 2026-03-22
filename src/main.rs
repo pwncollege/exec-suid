@@ -161,7 +161,7 @@ fn build_safe_env(uid: Uid) -> Vec<CString> {
         .to_string();
     env_vars.push(CString::new(path_value).unwrap());
 
-    match User::from_uid(uid).unwrap_or_else(|_| panic!("Failed to look up user by uid: {}", uid)) {
+    match User::from_uid(uid).ok().flatten() {
         Some(user) => {
             env_vars.push(CString::new(format!("USER={}", user.name)).unwrap());
             env_vars.push(CString::new(format!("LOGNAME={}", user.name)).unwrap());
