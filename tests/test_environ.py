@@ -53,10 +53,10 @@ def test_env_passwd_fallback(run_program):
         """
         #!/usr/bin/exec-suid -- /bin/bash -p
 
-        printf '%s\\n%s\\n%s\\n' "$USER" "$HOME" "$SHELL"
+        printf '%s\\n%s\\n%s\\n%s\\n' "$USER" "$LOGNAME" "$HOME" "$SHELL"
         """,
         script_permissions=0o555,
         user=12345,
         group=1000,
     )
-    assert result == "#12345\n/\n/bin/sh"
+    assert result == "#12345\n#12345\n/\n/bin/sh"

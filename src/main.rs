@@ -181,6 +181,7 @@ fn build_safe_env(uid: Uid) -> Vec<CString> {
     env_vars.push(CString::new(path_value).unwrap());
 
     env_vars.push(CString::new(format!("USER={}", target_user.name)).unwrap());
+    env_vars.push(CString::new(format!("LOGNAME={}", target_user.name)).unwrap());
     env_vars.push(CString::new(format!("HOME={}", target_user.dir.display())).unwrap());
     env_vars.push(CString::new(format!("SHELL={}", target_user.shell.display())).unwrap());
 
