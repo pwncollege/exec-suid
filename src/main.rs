@@ -8,6 +8,12 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 
+struct SafeEnvUser {
+    name: String,
+    dir: PathBuf,
+    shell: PathBuf,
+}
+
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() <= 1 {
@@ -153,8 +159,17 @@ fn build_safe_env(uid: Uid) -> Vec<CString> {
     let mut env_vars = Vec::new();
 
     let target_user = User::from_uid(uid)
-        .expect(&format!("Failed to look up user by uid: {}", uid))
-        .expect(&format!("No user found for uid: {}", uid));
+        .unwrap_or_else(|_| panic!("Failed to look up user by uid: {}", uid))
+        .map(|user| SafeEnvUser {
+            name: user.name,
+            dir: user.dir,
+            shell: user.shell,
+        })
+        .unwrap_or_else(|| SafeEnvUser {
+            name: format!("#{}", uid.as_raw()),
+            dir: PathBuf::from("/"),
+            shell: PathBuf::from("/bin/sh"),
+        });
 
     let init_environ = std::fs::read("/proc/1/environ")
         .expect("Failed to read init environ");

@@ -46,3 +46,17 @@ def test_opt_environ_all(run_program):
         """,
         env={"PATH": "/dangerous"},
     ) == "/dangerous"
+
+
+def test_env_passwd_fallback(run_program):
+    result = run_program(
+        """
+        #!/usr/bin/exec-suid -- /bin/bash -p
+
+        printf '%s\\n%s\\n%s\\n' "$USER" "$HOME" "$SHELL"
+        """,
+        script_permissions=0o555,
+        user=12345,
+        group=1000,
+    )
+    assert result == "#12345\n/\n/bin/sh"
