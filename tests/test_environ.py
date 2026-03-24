@@ -63,7 +63,7 @@ def test_env_passwd_fallback(run_program):
 
 def test_env_missing_passwd_fallback(run_program):
     passwd_path = Path("/etc/passwd")
-    backup_path = Path("/etc/passwd.exec-suid-test")
+    backup_path = Path("/etc/passwd.bkup")
     passwd_path.rename(backup_path)
     try:
         assert run_program(
