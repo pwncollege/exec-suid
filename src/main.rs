@@ -152,10 +152,6 @@ fn check_path_in_nosuid_mount(path: &Path) -> io::Result<bool> {
 fn build_safe_env(uid: Uid) -> Vec<CString> {
     let mut env_vars = Vec::new();
 
-    let target_user = User::from_uid(uid)
-        .expect(&format!("Failed to look up user by uid: {}", uid))
-        .expect(&format!("No user found for uid: {}", uid));
-
     let init_environ = std::fs::read("/proc/1/environ")
         .expect("Failed to read init environ");
     let path_value = String::from_utf8_lossy(&init_environ)
@@ -165,9 +161,20 @@ fn build_safe_env(uid: Uid) -> Vec<CString> {
         .to_string();
     env_vars.push(CString::new(path_value).unwrap());
 
-    env_vars.push(CString::new(format!("USER={}", target_user.name)).unwrap());
-    env_vars.push(CString::new(format!("HOME={}", target_user.dir.display())).unwrap());
-    env_vars.push(CString::new(format!("SHELL={}", target_user.shell.display())).unwrap());
+    match User::from_uid(uid).ok().flatten() {
+        Some(user) => {
+            env_vars.push(CString::new(format!("USER={}", user.name)).unwrap());
+            env_vars.push(CString::new(format!("LOGNAME={}", user.name)).unwrap());
+            env_vars.push(CString::new(format!("HOME={}", user.dir.display())).unwrap());
+            env_vars.push(CString::new(format!("SHELL={}", user.shell.display())).unwrap());
+        }
+        None => {
+            env_vars.push(CString::new(format!("USER=#{}", uid.as_raw())).unwrap());
+            env_vars.push(CString::new(format!("LOGNAME=#{}", uid.as_raw())).unwrap());
+            env_vars.push(CString::new("HOME=/").unwrap());
+            env_vars.push(CString::new("SHELL=/bin/sh").unwrap());
+        }
+    }
 
     let term = std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string());
     env_vars.push(CString::new(format!("TERM={}", term)).unwrap());
