@@ -58,7 +58,6 @@ def test_env_passwd_fallback(run_program):
         """,
         script_permissions=0o555,
         user=12345,
-        group=1000,
     ) == "#12345\n#12345\n/\n/bin/sh"
 
 
@@ -75,7 +74,6 @@ def test_env_missing_passwd_fallback(run_program):
             """,
             script_permissions=0o555,
             user=12345,
-            group=1000,
         ) == "#12345\n#12345\n/\n/bin/sh"
     finally:
         backup_path.rename(passwd_path)
