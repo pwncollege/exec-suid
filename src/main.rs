@@ -1,7 +1,7 @@
 use getopts::Options;
 use nix::sys::resource::{self, Resource, rlim_t};
-use nix::sys::stat::{self, Mode};
-use nix::unistd::{self, Uid, Gid, User};
+use nix::sys::stat::{self, Mode, SFlag};
+use nix::unistd::{self, AccessFlags, Uid, Gid, User};
 use std::{env, process};
 use std::collections::BTreeMap;
 use std::ffi::CString;
@@ -106,33 +106,44 @@ fn parse_header(path: &Path) -> io::Result<(Vec<String>, Vec<String>)> {
 }
 
 fn validate_secure_path(path: &Path) -> io::Result<()> {
-    if !path.exists() {
-        return Err(io::Error::new(io::ErrorKind::NotFound, "No such file or directory"));
-    }
-    let base_path = if path.is_relative() {
-        std::env::current_dir()?
+    unistd::access(path, AccessFlags::X_OK)
+        .map_err(|err| io::Error::from_raw_os_error(err as i32))?;
+
+    let full_path = if path.is_relative() {
+        std::env::current_dir()?.join(path)
     } else {
-        PathBuf::new()
+        path.to_path_buf()
     };
     let mut current_path = PathBuf::new();
-    for component in base_path.components().chain(path.components()) {
+    for component in full_path.components() {
         current_path.push(component);
         let stat = stat::lstat(&current_path)?;
+        let file_type = SFlag::from_bits_truncate(stat.st_mode);
+        let mode = Mode::from_bits_truncate(stat.st_mode);
+        let insecure_directory = file_type.contains(SFlag::S_IFDIR)
+            && mode.contains(Mode::S_IWOTH)
+            && !mode.contains(Mode::S_ISVTX);
         if stat.st_uid != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, "File not hierarchically owned by root"));
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is not root-owned", current_path.display())));
+        }
+        if insecure_directory {
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is a world-writable non-sticky directory", current_path.display())));
         }
     }
-    if check_path_in_nosuid_mount(path)? {
-        return Err(io::Error::new(io::ErrorKind::Other, "File is in a nosuid mount"));
+
+    let (mount_point, mount_options) = path_mount(path)?;
+    if mount_options.split(',').any(|opt| opt == "nosuid") {
+        return Err(io::Error::new(io::ErrorKind::Other, format!("Path is in a nosuid mount: {mount_point}")));
     }
+
     Ok(())
 }
 
-fn check_path_in_nosuid_mount(path: &Path) -> io::Result<bool> {
+fn path_mount(path: &Path) -> io::Result<(String, String)> {
     let path = path.canonicalize().unwrap();
     let mounts = File::open("/proc/self/mounts")?;
     let reader = io::BufReader::new(mounts);
-    if let Some(mount_options) = reader
+    reader
         .lines()
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
@@ -142,17 +153,13 @@ fn check_path_in_nosuid_mount(path: &Path) -> io::Result<bool> {
             if parts.len() >= 4 {
                 let (point, options) = (&parts[1], &parts[3]);
                 if path.starts_with(point) {
-                    return Some(options.to_string());
+                    return Some((point.to_string(), options.to_string()));
                 }
             }
             None
         })
         .next()
-    {
-        Ok(mount_options.split(',').any(|opt| opt == "nosuid"))
-    } else {
-        Err(io::Error::new(io::ErrorKind::Other, "File not in any mount"))
-    }
+        .ok_or_else(|| io::Error::new(io::ErrorKind::Other, "Path is not in any mount"))
 }
 
 fn build_safe_env(uid: Uid, env_overrides: &[String]) -> Result<Vec<CString>, String> {
