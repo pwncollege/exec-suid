@@ -9,7 +9,9 @@ import pytest
 @pytest.fixture
 def run_program():
     def _run(script, script_permissions=0o4755, **popen_kwargs):
-        if popen_kwargs.get("executable") is not None:
+        if popen_kwargs.get("script_path") is not None:
+            executable_path = str(popen_kwargs.pop("script_path"))
+        elif popen_kwargs.get("executable") is not None:
             executable_path = str(popen_kwargs["executable"])
         else:
             executable_path = str(Path("/tmp") / f"program_{uuid.uuid4().hex}")
@@ -22,6 +24,7 @@ def run_program():
         script_path.chmod(script_permissions)
 
         popen_kwargs["stdout"] = subprocess.PIPE
+        popen_kwargs["stderr"] = subprocess.PIPE
         popen_kwargs["text"] = True
         popen_kwargs.setdefault("executable", executable_path)
         popen_kwargs.setdefault("args", [executable_path])
@@ -29,9 +32,9 @@ def run_program():
         popen_kwargs.setdefault("group", 1000)
         try:
             process = subprocess.Popen(**popen_kwargs)
-            stdout, _ = process.communicate()
+            stdout, stderr = process.communicate()
             if process.returncode != 0:
-                raise subprocess.CalledProcessError(process.returncode, popen_kwargs["args"], output=stdout)
+                raise subprocess.CalledProcessError(process.returncode, popen_kwargs["args"], output=stdout, stderr=stderr)
         finally:
             script_path.unlink(missing_ok=True)
 
