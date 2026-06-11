@@ -99,25 +99,21 @@ This may be necessary if the interpreter you are using automatically sets the ef
 
 This also has implications for the ["dumpable" process attribute](https://man7.org/linux/man-pages/man2/PR_SET_DUMPABLE.2const.html) which may be relevant in some contexts (e.g., namespaces, ptrace).
 
-### Environment Handling (`--environ`)
+### Environment Handling (`--env`)
 
 By default, `exec-suid` carefully controls the environment variables passed to the invoked script to mitigate potential security risks.
-However, depending on your use case, you can customize this behavior using the `--environ` option:
 
-- **`safe` (default)**: Restricts environment variables to a safe subset:
-  - Inherited from init process (pid 1): `PATH`.
-  - From (new) effective user's `/etc/passwd` entry: `USER`, `HOME`, `SHELL`.
-  - Preserved if set, otherwise default values: `TERM` (default: `unknown`), `LANG` (default: `C.UTF-8`).
-  - Preserved if set, otherwise unset: `LANGUAGE`, `TZ`, `DISPLAY`, `LS_COLORS`, and all `LC_*` variables.
-  - All other variables unset.
+The default environment is restricted to a safe subset:
 
-- **`none`**: All environment variables are unset.
+- `PATH` is read from `/etc/environment`. If `/etc/environment` does not set `PATH`, `exec-suid` uses `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`.
+- From the new effective user's `/etc/passwd` entry: `USER`, `LOGNAME`, `HOME`, and `SHELL`.
+- Preserved from the caller if set, otherwise default values: `TERM` (default: `unknown`), `LANG` (default: `C.UTF-8`).
+- Preserved from the caller if set, otherwise unset: `LANGUAGE`, `TZ`, `DISPLAY`, `LS_COLORS`, and all `LC_*` variables.
+- All other variables unset.
 
-- **`all`**: All environment variables are preserved. This mode is **extremely dangerous**, since it allows a malicious user to control dangerous environment variables, such as `PATH` or `LD_PRELOAD`, which can lead to arbitrary code execution, or otherwise dramatically alter the behavior of the script in unexpected ways.
+Set additional environment variables in the shebang with repeated `--env KEY=VALUE` options; these override the default safe environment.
 
 For example:
 ```
-#!/usr/bin/exec-suid --environ=none -- /usr/bin/python3 -I
+#!/usr/bin/exec-suid --env PATH=/usr/bin:/bin --env APP_MODE=production -- /usr/bin/python3 -I
 ```
-
-This would run your python script with no inherited environment variables.

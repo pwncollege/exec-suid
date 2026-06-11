@@ -3,10 +3,13 @@ use nix::sys::resource::{self, Resource, rlim_t};
 use nix::sys::stat::{self, Mode};
 use nix::unistd::{self, Uid, Gid, User};
 use std::{env, process};
+use std::collections::BTreeMap;
 use std::ffi::CString;
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Read};
 use std::path::{Path, PathBuf};
+
+const DEFAULT_PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -31,7 +34,9 @@ fn main() {
 
     let mut opts = Options::new();
     opts.optflag("", "real", "Set real user and group IDs");
+    // Deprecated: kept temporarily for compatibility. New scripts should rely on the safe default and --env overrides.
     opts.optopt("", "environ", "Environment policy: safe (default), none, or all", "MODE");
+    opts.optmulti("", "env", "Set an environment variable in the invoked script", "KEY=VALUE");
     let matches = opts.parse(&exec_argv[1..]).unwrap();
 
     script_argv.push(path.to_str().unwrap().to_string());
@@ -48,15 +53,16 @@ fn main() {
     let new_egid = if mode.contains(Mode::S_ISGID) { Gid::from_raw(stat.st_gid) } else { real_gid };
     let (new_ruid, new_rgid) = if matches.opt_present("real") { (new_euid, new_egid) } else { (real_uid, real_gid) };
 
-    let env: Vec<CString> = match matches.opt_str("environ").unwrap_or_else(|| "safe".to_string()).as_str() {
-        "none" => Vec::new(),
-        "all" => {
-            env::vars()
-                .map(|(key, value)| CString::new(format!("{}={}", key, value)).unwrap())
-                .collect()
-        },
-        "safe" | _ => build_safe_env(new_euid),
-    };
+    let env = match matches.opt_str("environ").unwrap_or_else(|| "safe".into()).as_str() {
+        "none" => Ok(Vec::new()),
+        "all" => env::vars()
+            .map(|(key, value)| CString::new(format!("{}={}", key, value)).map_err(|_| "environment contains NUL byte".to_string()))
+            .collect(),
+        "safe" | _ => build_safe_env(new_euid, &matches.opt_strs("env")),
+    }.unwrap_or_else(|err| {
+        eprintln!("{}: {}", path.display(), err);
+        process::exit(1);
+    });
 
     if let Err(err) = resource::setrlimit(Resource::RLIMIT_CORE, 0 as rlim_t, 0 as rlim_t) {
         eprintln!("{}: {}", path.display(), err);
@@ -149,43 +155,77 @@ fn check_path_in_nosuid_mount(path: &Path) -> io::Result<bool> {
     }
 }
 
-fn build_safe_env(uid: Uid) -> Vec<CString> {
-    let mut env_vars = Vec::new();
-
-    let init_environ = std::fs::read("/proc/1/environ")
-        .expect("Failed to read init environ");
-    let path_value = String::from_utf8_lossy(&init_environ)
-        .split('\0')
-        .find(|s| s.starts_with("PATH="))
-        .expect("PATH not found in init environ")
-        .to_string();
-    env_vars.push(CString::new(path_value).unwrap());
+fn build_safe_env(uid: Uid, env_overrides: &[String]) -> Result<Vec<CString>, String> {
+    let mut env_vars: BTreeMap<String, String> = BTreeMap::new();
 
     match User::from_uid(uid).ok().flatten() {
         Some(user) => {
-            env_vars.push(CString::new(format!("USER={}", user.name)).unwrap());
-            env_vars.push(CString::new(format!("LOGNAME={}", user.name)).unwrap());
-            env_vars.push(CString::new(format!("HOME={}", user.dir.display())).unwrap());
-            env_vars.push(CString::new(format!("SHELL={}", user.shell.display())).unwrap());
+            env_vars.insert("USER".into(), user.name.clone());
+            env_vars.insert("LOGNAME".into(), user.name);
+            env_vars.insert("HOME".into(), user.dir.display().to_string());
+            env_vars.insert("SHELL".into(), user.shell.display().to_string());
         }
         None => {
-            env_vars.push(CString::new(format!("USER=#{}", uid.as_raw())).unwrap());
-            env_vars.push(CString::new(format!("LOGNAME=#{}", uid.as_raw())).unwrap());
-            env_vars.push(CString::new("HOME=/").unwrap());
-            env_vars.push(CString::new("SHELL=/bin/sh").unwrap());
+            env_vars.insert("USER".into(), format!("#{}", uid.as_raw()));
+            env_vars.insert("LOGNAME".into(), format!("#{}", uid.as_raw()));
+            env_vars.insert("HOME".into(), "/".into());
+            env_vars.insert("SHELL".into(), "/bin/sh".into());
         }
     }
 
-    let term = std::env::var("TERM").unwrap_or_else(|_| "unknown".to_string());
-    env_vars.push(CString::new(format!("TERM={}", term)).unwrap());
-    let lang = std::env::var("LANG").unwrap_or_else(|_| "C.UTF-8".to_string());
-    env_vars.push(CString::new(format!("LANG={}", lang)).unwrap());
+    let term = std::env::var("TERM").unwrap_or_else(|_| "unknown".into());
+    env_vars.insert("TERM".into(), term);
+    let lang = std::env::var("LANG").unwrap_or_else(|_| "C.UTF-8".into());
+    env_vars.insert("LANG".into(), lang);
 
     for (key, value) in std::env::vars() {
         if ["LANGUAGE", "TZ", "DISPLAY", "LS_COLORS"].contains(&key.as_str()) || key.starts_with("LC_") {
-            env_vars.push(CString::new(format!("{}={}", key, value)).unwrap());
+            env_vars.insert(key, value);
         }
     }
 
+    for item in env_overrides {
+        let (key, value) = item
+            .split_once('=')
+            .ok_or_else(|| format!("--env requires KEY=VALUE: {item}"))?;
+        if key.is_empty() || key.as_bytes().contains(&0) || key.as_bytes().contains(&b'=') {
+            return Err(format!("invalid environment variable name: {key}"));
+        }
+        env_vars.insert(key.to_string(), value.to_string());
+    }
+
+    if !env_vars.contains_key("PATH") {
+        env_vars.insert("PATH".into(), environment_file_path().unwrap_or_else(|| DEFAULT_PATH.into()));
+    }
+
     env_vars
+        .into_iter()
+        .map(|(key, value)| CString::new(format!("{}={}", key, value)).map_err(|_| "environment contains NUL byte".to_string()))
+        .collect()
+}
+
+fn environment_file_path() -> Option<String> {
+    let mut data = String::new();
+    File::open("/etc/environment").ok()?.read_to_string(&mut data).ok()?;
+    data.lines().find_map(|line| {
+        let mut line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            return None;
+        }
+        if let Some(rest) = line.strip_prefix("export ") {
+            line = rest.trim_start();
+        }
+        line = line.split_once('#').map(|(value, _)| value).unwrap_or(line).trim_end();
+        let (key, value) = line.split_once('=')?;
+        if key.trim() != "PATH" {
+            return None;
+        }
+        let value = value.trim();
+        Some(if let Some(quote) = value.chars().next().filter(|quote| *quote == '"' || *quote == '\'') {
+            let value = &value[1..];
+            value.strip_suffix(quote).unwrap_or(value).to_string()
+        } else {
+            value.to_string()
+        })
+    })
 }
