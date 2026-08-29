@@ -37,8 +37,12 @@ fn main() {
     // Deprecated: kept temporarily for compatibility. New scripts should rely on the safe default and --env overrides.
     opts.optopt("", "environ", "Environment policy: safe (default), none, or all", "MODE");
     opts.optmulti("", "env", "Set an environment variable in the invoked script", "KEY=VALUE");
+    opts.optflag("", "no-interpreter-separator", "Do not insert -- before the script path");
     let matches = opts.parse(&exec_argv[1..]).unwrap();
 
+    if !matches.opt_present("no-interpreter-separator") {
+        script_argv.push("--".to_string());
+    }
     script_argv.push(path.to_str().unwrap().to_string());
     script_argv.extend_from_slice(&args[if args.len() == 2 { 2.. } else { 3.. }]);
 
