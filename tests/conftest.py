@@ -14,7 +14,7 @@ def run_program():
         elif popen_kwargs.get("executable") is not None:
             executable_path = str(popen_kwargs["executable"])
         else:
-            executable_path = str(Path("/tmp") / f"program_{uuid.uuid4().hex}")
+            executable_path = str(Path("/tests/tmp") / f"program_{uuid.uuid4().hex}")
 
         script_path = Path(executable_path)
         if not script_path.is_absolute():
