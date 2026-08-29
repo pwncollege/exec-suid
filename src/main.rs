@@ -1,6 +1,6 @@
 use getopts::Options;
 use nix::sys::resource::{self, Resource, rlim_t};
-use nix::sys::stat::{self, Mode, SFlag};
+use nix::sys::stat::{self, Mode};
 use nix::unistd::{self, AccessFlags, Uid, Gid, User};
 use std::{env, process};
 use std::collections::BTreeMap;
@@ -118,16 +118,12 @@ fn validate_secure_path(path: &Path) -> io::Result<()> {
     for component in full_path.components() {
         current_path.push(component);
         let stat = stat::lstat(&current_path)?;
-        let file_type = SFlag::from_bits_truncate(stat.st_mode);
         let mode = Mode::from_bits_truncate(stat.st_mode);
-        let insecure_directory = file_type.contains(SFlag::S_IFDIR)
-            && mode.contains(Mode::S_IWOTH)
-            && !mode.contains(Mode::S_ISVTX);
         if stat.st_uid != 0 {
             return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is not root-owned", current_path.display())));
         }
-        if insecure_directory {
-            return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is a world-writable non-sticky directory", current_path.display())));
+        if mode.contains(Mode::S_IWOTH) {
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is world-writable", current_path.display())));
         }
     }
 

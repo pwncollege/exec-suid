@@ -5,8 +5,8 @@ def test_argv0(run_program):
 
         printf '%s\\n' "$0"
         """,
-        executable="/tmp/test_argv0",
-    ) == "/tmp/test_argv0"
+        executable="/tests/tmp/test_argv0",
+    ) == "/tests/tmp/test_argv0"
 
 
 def test_argv0_relative(run_program):
@@ -17,7 +17,7 @@ def test_argv0_relative(run_program):
         printf '%s\\n' "$0"
         """,
         executable="./test_argv0_relative",
-        cwd="/tmp",
+        cwd="/tests/tmp",
     ) == "./test_argv0_relative"
 
 
@@ -28,6 +28,6 @@ def test_argv1(run_program):
 
         printf '%s\\n' "$1"
         """,
-        executable="/tmp/test_argv1",
-        args=["/tmp/test_argv1", "test"],
+        executable="/tests/tmp/test_argv1",
+        args=["/tests/tmp/test_argv1", "test"],
     ) == "test"

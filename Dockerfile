@@ -13,6 +13,7 @@ RUN pip install pytest
 RUN useradd -m hacker
 COPY --from=builder --chmod=6755 /usr/src/exec-suid/target/x86_64-unknown-linux-musl/release/exec-suid /usr/bin/exec-suid
 COPY tests /tests
+RUN mkdir -m 0755 /tests/tmp
 
 
 CMD ["pytest", "-v", "/tests"]
