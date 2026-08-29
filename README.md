@@ -82,7 +82,23 @@ See [https://docs.python.org/3/using/cmdline.html#cmdoption-I](https://docs.pyth
 
 See [https://www.man7.org/linux/man-pages/man1/bash.1.html#INVOCATION](https://www.man7.org/linux/man-pages/man1/bash.1.html#INVOCATION)
 
+### PHP
+
+PHP expects the script path to immediately follow its `-f` option, so the implicit interpreter separator must be disabled:
+
+```
+#!/usr/bin/exec-suid --no-interpreter-separator -- /usr/bin/php -f
+```
+
+See [https://www.php.net/manual/en/features.commandline.options.php](https://www.php.net/manual/en/features.commandline.options.php).
+
 ## Options
+
+### Interpreter Separator (`--no-interpreter-separator`)
+
+By default, `exec-suid` inserts `--` between the configured interpreter arguments and the script path. This prevents an option-like script path from being interpreted as an interpreter argument.
+
+Some interpreters instead require the script path to immediately follow an option. Use `--no-interpreter-separator` for these command forms so that `exec-suid` does not insert `--` before the script path. See the [PHP interpreter](#php) example.
 
 ### Effective vs Real (`--real`)
 
