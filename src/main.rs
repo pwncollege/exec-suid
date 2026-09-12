@@ -1,6 +1,8 @@
 use getopts::Options;
+use nix::fcntl::{self, OFlag, OpenHow, ResolveFlag};
+use nix::libc::AT_FDCWD;
 use nix::sys::resource::{self, Resource, rlim_t};
-use nix::sys::stat::{self, Mode};
+use nix::sys::stat::{self, Mode, SFlag};
 use nix::unistd::{self, AccessFlags, Uid, Gid, User};
 use std::{env, process};
 use std::collections::BTreeMap;
@@ -118,29 +120,66 @@ fn validate_secure_path(path: &Path) -> io::Result<()> {
     } else {
         path.to_path_buf()
     };
+    let resolved_path = validate_path_components(&full_path, &mut 0)?;
+
+    let (mount_point, mount_options) = path_mount(&resolved_path)?;
+    if mount_options.split(',').any(|opt| opt == "nosuid") {
+        return Err(io::Error::new(io::ErrorKind::Other, format!("Path is in a nosuid mount: {mount_point}")));
+    }
+
+    validate_no_magic_links(path)?;
+
+    Ok(())
+}
+
+fn validate_no_magic_links(path: &Path) -> io::Result<()> {
+    // A nondumpable process's proc links appear root-owned, even if the process
+    // is unprivileged and still controls their targets.
+    // Omit O_NOFOLLOW so a final magic link is rejected too.
+    let how = OpenHow::new()
+        .flags(OFlag::O_PATH | OFlag::O_CLOEXEC)
+        .resolve(ResolveFlag::RESOLVE_NO_MAGICLINKS);
+    let fd = fcntl::openat2(AT_FDCWD, path, how).map_err(|err| {
+        let err = io::Error::from_raw_os_error(err as i32);
+        // No fallback if openat2 is unavailable or blocked.
+        io::Error::new(err.kind(), format!("Cannot resolve path without magic links: {err}"))
+    })?;
+    unistd::close(fd)?;
+    Ok(())
+}
+
+fn validate_path_components(path: &Path, symlinks: &mut usize) -> io::Result<PathBuf> {
     let mut current_path = PathBuf::new();
-    for component in full_path.components() {
+    for component in path.components() {
         current_path.push(component);
         let stat = stat::lstat(&current_path)?;
+        let file_type = SFlag::from_bits_truncate(stat.st_mode);
         let mode = Mode::from_bits_truncate(stat.st_mode);
         if stat.st_uid != 0 {
             return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is not root-owned", current_path.display())));
+        }
+        if file_type == SFlag::S_IFLNK {
+            // Ordinary symlinks report 0777; the parent controls replacement.
+            // Resolve links as we walk: canonicalizing first would skip ancestors.
+            *symlinks += 1;
+            if *symlinks > 40 {
+                return Err(io::Error::from_raw_os_error(nix::errno::Errno::ELOOP as i32));
+            }
+            let target = std::fs::read_link(&current_path)?;
+            let target = current_path.parent().unwrap().join(target);
+            current_path = validate_path_components(&target, symlinks)?;
+            continue;
         }
         if mode.contains(Mode::S_IWOTH) {
             return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is world-writable", current_path.display())));
         }
     }
 
-    let (mount_point, mount_options) = path_mount(path)?;
-    if mount_options.split(',').any(|opt| opt == "nosuid") {
-        return Err(io::Error::new(io::ErrorKind::Other, format!("Path is in a nosuid mount: {mount_point}")));
-    }
-
-    Ok(())
+    Ok(current_path)
 }
 
 fn path_mount(path: &Path) -> io::Result<(String, String)> {
-    let path = path.canonicalize().unwrap();
+    let path = path.canonicalize()?;
     let mounts = File::open("/proc/self/mounts")?;
     let reader = io::BufReader::new(mounts);
     reader
