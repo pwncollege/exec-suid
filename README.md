@@ -54,6 +54,16 @@ ADD --chown=0:0 --chmod=6755 http://github.com/pwncollege/exec-suid/releases/lat
 The interface to `exec-suid` is the shebang line of the script you want to run suid.
 Absolute paths are crucial, in a suid context, we cannot trust the PATH environment variable.
 
+## Secure paths
+
+Every component of the script path, including symlinks and their targets, must be root-owned.
+Files and directories must not be other-writable, even with the sticky bit; group write is allowed as root's intentional delegation.
+Ordinary symlink mode bits are ignored, but ownership and all original and target components are checked.
+Kernel magic links such as `/proc/self/fd/N` and `/proc/PID/exe` are rejected, including through aliases: nondumpable processes can have root-owned proc links whose targets remain under unprivileged control.
+Use an ordinary trusted path instead of proc-based script paths accepted by earlier versions.
+The caller must have execute permission, and the resolved script must not be on a `nosuid` mount.
+Validation requires Linux 5.6+ and permission to call `openat2` with `RESOLVE_NO_MAGICLINKS`; execution fails if that check is unavailable or blocked.
+
 ## Interpreters
 
 Depending on the interpreter you are using, you may need to include additional arguments to the interpreter, in order to make it work properly, or to ensure that it is secure.
