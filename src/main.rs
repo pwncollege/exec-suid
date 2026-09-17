@@ -155,8 +155,8 @@ fn validate_path_components(path: &Path, symlinks: &mut usize) -> io::Result<Pat
         let stat = stat::lstat(&current_path)?;
         let file_type = SFlag::from_bits_truncate(stat.st_mode);
         let mode = Mode::from_bits_truncate(stat.st_mode);
-        if stat.st_uid != 0 {
-            return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is not root-owned", current_path.display())));
+        if stat.st_uid != 0 || stat.st_gid != 0 {
+            return Err(io::Error::new(io::ErrorKind::Other, format!("Path is insecure: {} is not owned by root:root", current_path.display())));
         }
         if file_type == SFlag::S_IFLNK {
             // Ordinary symlinks report 0777; the parent controls replacement.

@@ -94,8 +94,9 @@ def test_trusted_symlinks_preserve_script_path(run_program, symlink_tree, kind, 
     ) == executable
 
 
+@pytest.mark.parametrize(("uid", "gid"), [(1000, 0), (0, 1000), (1000, 1000)])
 @pytest.mark.parametrize("component", ["link", "intermediate", "target", "script"])
-def test_symlink_path_requires_root_ownership(run_program, symlink_tree, component):
+def test_symlink_path_requires_root_user_and_group(run_program, symlink_tree, component, uid, gid):
     target = symlink_tree / "target"
     script = target / "program"
     link = symlink_tree / "link"
@@ -109,7 +110,7 @@ def test_symlink_path_requires_root_ownership(run_program, symlink_tree, compone
     if component == "script":
         # The shared fixture preserves an existing file's ownership when writing it.
         script.touch()
-    os.chown(checked, 1000, 1000, follow_symlinks=False)
+    os.chown(checked, uid, gid, follow_symlinks=False)
     with pytest.raises(subprocess.CalledProcessError) as error:
         run_program(
             SCRIPT,
@@ -117,7 +118,7 @@ def test_symlink_path_requires_root_ownership(run_program, symlink_tree, compone
             script_path=str(script),
             executable=str(link if component == "script" else link / "program"),
         )
-    assert f"{checked} is not root-owned" in error.value.stderr
+    assert f"{checked} is not owned by root:root" in error.value.stderr
 
 
 @pytest.mark.parametrize("mode", [0o777, 0o1777])
@@ -155,13 +156,13 @@ def test_symlink_to_writable_script_rejected(run_program, symlink_tree):
     assert f"{script} is world-writable" in error.value.stderr
 
 
-def test_root_delegated_group_write_allowed(run_program, symlink_tree):
+def test_root_group_write_allowed(run_program, symlink_tree):
     target = symlink_tree / "target"
-    os.chown(target, 0, 1000)
+    os.chown(target, 0, 0)
     target.chmod(0o775)
     script = target / "program"
     script.touch()
-    os.chown(script, 0, 1000)
+    os.chown(script, 0, 0)
     link = symlink_tree / "link"
     link.symlink_to(script)
     assert run_program(

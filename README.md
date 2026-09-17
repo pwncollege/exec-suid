@@ -56,8 +56,9 @@ Absolute paths are crucial, in a suid context, we cannot trust the PATH environm
 
 ## Secure paths
 
-Every component of the script path, including symlinks and their targets, must be root-owned.
-Files and directories must not be other-writable, even with the sticky bit; group write is allowed as root's intentional delegation.
+Every component of the script path, including symlinks and their targets, must be owned by root:root.
+Non-symlink files and directories must not be other-writable, even with the sticky bit.
+Group write is permitted because every accepted component belongs to the trusted root group (GID 0).
 Ordinary symlink mode bits are ignored, but ownership and all original and target components are checked.
 Kernel magic links such as `/proc/self/fd/N` and `/proc/PID/exe` are rejected, including through aliases: nondumpable processes can have root-owned proc links whose targets remain under unprivileged control.
 Use an ordinary trusted path instead of proc-based script paths accepted by earlier versions.
