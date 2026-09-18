@@ -1,3 +1,5 @@
+# exec-suid
+
 Being able to run a program suid is a powerful capability that can be used to design interesting systems.
 Unfortunately, scripts, like those written in python and bash, cannot be natively run suid.
 This is because their interpreters are not marked suid, and should not be.
@@ -22,7 +24,7 @@ Now, assuming root owns the file, root marks this script as suid (`chmod u+s`), 
 
 Without `exec-suid`, this would not work, as the python interpreter is not marked suid, and so even if the script is, it will not be able to read the file.
 
-# Installation
+## Installation
 
 > :warning: **Warning**
 >
@@ -39,7 +41,7 @@ chmod 6755 /usr/bin/exec-suid
 This will install the latest version of `exec-suid` to `/usr/bin/exec-suid`, and mark it as suid-root.
 This program is designed to be run as root, and will not work properly if it is not.
 
-## Docker
+### Docker
 
 If you are installing this into a docker image, you can use the following Dockerfile syntax (without needing `wget` or similar dependencies):
 
@@ -49,12 +51,12 @@ If you are installing this into a docker image, you can use the following Docker
 ADD --chown=0:0 --chmod=6755 http://github.com/pwncollege/exec-suid/releases/latest/download/exec-suid /usr/bin/exec-suid
 
 ```
-# Usage
+## Usage
 
 The interface to `exec-suid` is the shebang line of the script you want to run suid.
 Absolute paths are crucial, in a suid context, we cannot trust the PATH environment variable.
 
-## Script paths
+### Script paths
 
 By default, `exec-suid` resolves the script path once using the caller's filesystem credentials and pins the resulting file descriptor.
 The caller must be able to traverse the supplied path and execute the resulting regular file.
@@ -73,7 +75,7 @@ The interpreter-visible script name is `/proc/self/fd/N`, where `N` is the first
 This changes values such as Bash's `$0`, Python's `sys.argv[0]` and `__file__`, and paths used for relative imports or resources.
 Use `--preserve-script-path` when the script requires its original name.
 
-### Preserving the script path
+#### Preserving the script path
 
 `--preserve-script-path` passes the supplied path to the interpreter instead of creating a snapshot:
 
@@ -89,11 +91,11 @@ Kernel magic links such as `/proc/self/fd/N` and `/proc/PID/exe` are rejected, i
 
 Path-preserving validation requires Linux 5.6+ and permission to call `openat2` with `RESOLVE_NO_MAGICLINKS`; execution fails if that check is unavailable or blocked.
 
-## Interpreters
+### Interpreters
 
 Depending on the interpreter you are using, you may need to include additional arguments to the interpreter, in order to make it work properly, or to ensure that it is secure.
 
-### Python
+#### Python
 
 ```
 #!/usr/bin/exec-suid -- /usr/bin/python3 -I
@@ -105,7 +107,7 @@ Depending on the interpreter you are using, you may need to include additional a
 
 See [https://docs.python.org/3/using/cmdline.html#cmdoption-I](https://docs.python.org/3/using/cmdline.html#cmdoption-I).
 
-### Bash
+#### Bash
 
 ```
 #!/usr/bin/exec-suid -- /bin/bash -p
@@ -117,7 +119,7 @@ See [https://docs.python.org/3/using/cmdline.html#cmdoption-I](https://docs.pyth
 
 See [https://www.man7.org/linux/man-pages/man1/bash.1.html#INVOCATION](https://www.man7.org/linux/man-pages/man1/bash.1.html#INVOCATION)
 
-### PHP
+#### PHP
 
 PHP expects the script path to immediately follow its `-f` option, so the implicit interpreter separator must be disabled:
 
@@ -127,21 +129,21 @@ PHP expects the script path to immediately follow its `-f` option, so the implic
 
 See [https://www.php.net/manual/en/features.commandline.options.php](https://www.php.net/manual/en/features.commandline.options.php).
 
-## Options
+### Options
 
-### Script Path (`--preserve-script-path`)
+#### Script Path (`--preserve-script-path`)
 
 By default, the interpreter reads an FD-backed snapshot and sees `/proc/self/fd/N` as the script name, with `N` allocated from 100 upward.
 Use `--preserve-script-path` to pass the original path to the interpreter for scripts that depend on `$0`, `sys.argv[0]`, `__file__`, or path-relative resources.
 The original path is accepted only when it satisfies the trusted path requirements described above.
 
-### Interpreter Separator (`--no-interpreter-separator`)
+#### Interpreter Separator (`--no-interpreter-separator`)
 
 By default, `exec-suid` inserts `--` between the configured interpreter arguments and the script path. This prevents an option-like script path from being interpreted as an interpreter argument.
 
 Some interpreters instead require the script path to immediately follow an option. Use `--no-interpreter-separator` for these command forms so that `exec-suid` does not insert `--` before the script path. See the [PHP interpreter](#php) example.
 
-### Effective vs Real (`--real`)
+#### Effective vs Real (`--real`)
 
 By default, `exec-suid` will elevate only the effective user id (and saved user id), but not the real id.
 This is the same behavior as a standard suid program.
@@ -156,7 +158,7 @@ This may be necessary if the interpreter you are using automatically sets the ef
 
 This also has implications for the ["dumpable" process attribute](https://man7.org/linux/man-pages/man2/PR_SET_DUMPABLE.2const.html) which may be relevant in some contexts (e.g., namespaces, ptrace).
 
-### Environment Handling (`--env`)
+#### Environment Handling (`--env`)
 
 By default, `exec-suid` carefully controls the environment variables passed to the invoked script to mitigate potential security risks.
 
