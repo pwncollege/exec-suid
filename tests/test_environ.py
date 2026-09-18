@@ -1,8 +1,23 @@
 import os
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 DEFAULT_SAFE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+
+def test_deprecated_environ_option_is_rejected(run_program):
+    with pytest.raises(subprocess.CalledProcessError) as error:
+        run_program(
+            """
+            #!/usr/bin/exec-suid --environ all -- /bin/bash -p
+
+            printf 'unexpected execution\n'
+            """
+        )
+    assert "Unrecognized option: 'environ'" in error.value.stderr
 
 
 def test_env_path(run_program):

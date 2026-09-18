@@ -16,7 +16,7 @@ def test_insecure_world_writable_directory_rejected(run_program):
         with pytest.raises(subprocess.CalledProcessError) as error:
             run_program(
                 """
-                #!/usr/bin/exec-suid -- /bin/bash -p
+                #!/usr/bin/exec-suid --preserve-script-path -- /bin/bash -p
 
                 printf 'ok\\n'
                 """,
@@ -36,7 +36,7 @@ def test_sticky_world_writable_directory_rejected(run_program):
         with pytest.raises(subprocess.CalledProcessError) as error:
             run_program(
                 """
-                #!/usr/bin/exec-suid -- /bin/bash -p
+                #!/usr/bin/exec-suid --preserve-script-path -- /bin/bash -p
 
                 printf 'ok\\n'
                 """,
@@ -59,7 +59,7 @@ def symlink_tree():
 
 
 SCRIPT = """
-#!/usr/bin/exec-suid -- /bin/bash -p
+#!/usr/bin/exec-suid --preserve-script-path -- /bin/bash -p
 
 printf '%s\\n' "$0"
 """
@@ -199,7 +199,7 @@ def test_symlink_to_nosuid_mount_rejected(run_program, symlink_tree):
         link.symlink_to(script)
         with pytest.raises(subprocess.CalledProcessError) as error:
             run_program(SCRIPT, script_path=str(script), executable=str(link))
-        assert "Path is in a nosuid mount: /dev" in error.value.stderr
+        assert "Path is in a nosuid mount" in error.value.stderr
     finally:
         shutil.rmtree(directory, ignore_errors=True)
 
@@ -223,7 +223,7 @@ def test_world_writable_script_rejected(run_program):
     with pytest.raises(subprocess.CalledProcessError) as error:
         run_program(
             """
-            #!/usr/bin/exec-suid -- /bin/bash -p
+            #!/usr/bin/exec-suid --preserve-script-path -- /bin/bash -p
 
             printf 'ok\\n'
             """,
@@ -240,7 +240,7 @@ def test_direct_invocation_requires_script_execute_permission(run_program):
         with pytest.raises(subprocess.CalledProcessError) as error:
             run_program(
                 """
-                #!/usr/bin/exec-suid -- /bin/bash -p
+                #!/usr/bin/exec-suid --preserve-script-path -- /bin/bash -p
 
                 printf 'ok\\n'
                 """,

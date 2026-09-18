@@ -1,3 +1,4 @@
+import os
 import subprocess
 import textwrap
 import uuid
@@ -9,6 +10,8 @@ import pytest
 @pytest.fixture
 def run_program():
     def _run(script, script_permissions=0o4755, **popen_kwargs):
+        script_uid = popen_kwargs.pop("script_uid", None)
+        script_gid = popen_kwargs.pop("script_gid", None)
         if popen_kwargs.get("script_path") is not None:
             executable_path = str(popen_kwargs.pop("script_path"))
         elif popen_kwargs.get("executable") is not None:
@@ -21,6 +24,12 @@ def run_program():
             script_path = Path(popen_kwargs.get("cwd") or Path.cwd()) / script_path
 
         script_path.write_text(textwrap.dedent(script).lstrip())
+        if script_uid is not None or script_gid is not None:
+            os.chown(
+                script_path,
+                script_uid if script_uid is not None else -1,
+                script_gid if script_gid is not None else -1,
+            )
         script_path.chmod(script_permissions)
 
         popen_kwargs["stdout"] = subprocess.PIPE
