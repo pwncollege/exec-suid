@@ -10,7 +10,7 @@ import pytest
 
 @pytest.mark.parametrize("target_kind", ["file", "directory"])
 @pytest.mark.parametrize("spelling", ["self", "pid", "alias"])
-def test_magic_link_script_path_rejected(run_program, target_kind, spelling):
+def test_preserved_magic_link_script_path_rejected(run_program, target_kind, spelling):
     directory = Path("/tests/tmp") / f"exec_suid_magic_{uuid.uuid4().hex}"
     directory.mkdir(mode=0o755)
     script = directory / "program"
@@ -29,7 +29,7 @@ def test_magic_link_script_path_rejected(run_program, target_kind, spelling):
         with pytest.raises(subprocess.CalledProcessError) as error:
             run_program(
                 """
-                #!/usr/bin/exec-suid -- /bin/sh
+                #!/usr/bin/exec-suid --preserve-script-path -- /bin/sh
                 printf 'unexpected execution\\n'
                 """,
                 script_permissions=0o755,
@@ -48,7 +48,7 @@ def test_magic_link_script_path_rejected(run_program, target_kind, spelling):
         shutil.rmtree(directory, ignore_errors=True)
 
 
-def test_self_exe_rejected_before_header_parsing():
+def test_self_exe_is_not_treated_as_a_script():
     result = subprocess.run(
         ["/usr/bin/exec-suid", "/proc/self/exe"],
         capture_output=True,
@@ -56,5 +56,26 @@ def test_self_exe_rejected_before_header_parsing():
         check=False,
     )
     assert result.returncode != 0
-    assert "Cannot resolve path without magic links:" in result.stderr
-    assert f"(os error {errno.ELOOP})" in result.stderr
+    assert result.stderr
+
+
+def test_fd_mode_accepts_a_magic_link(run_program):
+    directory = Path("/tests/tmp") / f"exec_suid_magic_{uuid.uuid4().hex}"
+    directory.mkdir(mode=0o755)
+    script = directory / "program"
+    script.touch()
+    fd = os.open(script, os.O_RDONLY)
+    try:
+        assert run_program(
+            """
+            #!/usr/bin/exec-suid -- /bin/sh -p
+            printf 'ok\n'
+            """,
+            script_path=str(script),
+            executable="/usr/bin/exec-suid",
+            args=["/usr/bin/exec-suid", f"/proc/self/fd/{fd}"],
+            pass_fds=[fd],
+        ) == "ok"
+    finally:
+        os.close(fd)
+        shutil.rmtree(directory, ignore_errors=True)

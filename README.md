@@ -54,16 +54,40 @@ ADD --chown=0:0 --chmod=6755 http://github.com/pwncollege/exec-suid/releases/lat
 The interface to `exec-suid` is the shebang line of the script you want to run suid.
 Absolute paths are crucial, in a suid context, we cannot trust the PATH environment variable.
 
-## Secure paths
+## Script paths
 
-Every component of the script path, including symlinks and their targets, must be owned by root:root.
+By default, `exec-suid` resolves the script path once using the caller's filesystem credentials and pins the resulting file descriptor.
+The caller must be able to traverse the supplied path and execute the resulting regular file.
+The file must not be on a `nosuid` or `noexec` mount.
+
+The pinned script is copied into an anonymous memory-backed file, and the interpreter receives that snapshot through the first available file descriptor at or above 100 (for example, `/proc/self/fd/100`).
+Only a read-only descriptor is inherited by the interpreter.
+The memfd's diagnostic name is the resolved source path, truncated to Linux's 249-byte limit.
+The snapshot retains the source owner, group, and permission bits; read permission is added to the permission class selected by the final credentials.
+FD-backed scripts are limited to 64 MiB.
+
+Because the interpreter never reopens the supplied path, parent directories and symlinks do not need trusted ownership and may be writable.
+Renaming or replacing the path after it has been opened cannot change the executed snapshot.
+
+The interpreter-visible script name is `/proc/self/fd/N`, where `N` is the first available descriptor at or above 100, not the supplied path.
+This changes values such as Bash's `$0`, Python's `sys.argv[0]` and `__file__`, and paths used for relative imports or resources.
+Use `--preserve-script-path` when the script requires its original name.
+
+### Preserving the script path
+
+`--preserve-script-path` passes the supplied path to the interpreter instead of creating a snapshot:
+
+```
+#!/usr/bin/exec-suid --preserve-script-path -- /usr/bin/python3 -I
+```
+
+This mode requires every component of the script path, including symlinks and their targets, to be owned by root:root.
 Non-symlink files and directories must not be other-writable, even with the sticky bit.
 Group write is permitted because every accepted component belongs to the trusted root group (GID 0).
 Ordinary symlink mode bits are ignored, but ownership and all original and target components are checked.
-Kernel magic links such as `/proc/self/fd/N` and `/proc/PID/exe` are rejected, including through aliases: nondumpable processes can have root-owned proc links whose targets remain under unprivileged control.
-Use an ordinary trusted path instead of proc-based script paths accepted by earlier versions.
-The caller must have execute permission, and the resolved script must not be on a `nosuid` mount.
-Validation requires Linux 5.6+ and permission to call `openat2` with `RESOLVE_NO_MAGICLINKS`; execution fails if that check is unavailable or blocked.
+Kernel magic links such as `/proc/self/fd/N` and `/proc/PID/exe` are rejected, including through aliases.
+
+Path-preserving validation requires Linux 5.6+ and permission to call `openat2` with `RESOLVE_NO_MAGICLINKS`; execution fails if that check is unavailable or blocked.
 
 ## Interpreters
 
@@ -104,6 +128,12 @@ PHP expects the script path to immediately follow its `-f` option, so the implic
 See [https://www.php.net/manual/en/features.commandline.options.php](https://www.php.net/manual/en/features.commandline.options.php).
 
 ## Options
+
+### Script Path (`--preserve-script-path`)
+
+By default, the interpreter reads an FD-backed snapshot and sees `/proc/self/fd/N` as the script name, with `N` allocated from 100 upward.
+Use `--preserve-script-path` to pass the original path to the interpreter for scripts that depend on `$0`, `sys.argv[0]`, `__file__`, or path-relative resources.
+The original path is accepted only when it satisfies the trusted path requirements described above.
 
 ### Interpreter Separator (`--no-interpreter-separator`)
 
