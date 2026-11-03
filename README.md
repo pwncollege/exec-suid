@@ -145,16 +145,12 @@ Some interpreters instead require the script path to immediately follow an optio
 
 #### Effective vs Real (`--real`)
 
-By default, `exec-suid` will elevate only the effective user id (and saved user id), but not the real id.
-This is the same behavior as a standard suid program.
-In order to also elevate the real user id, you can use the `--real` option.
+By default, `exec-suid` sets the effective user and group IDs according to the script's setuid and setgid bits, preserving the caller's real IDs.
+The `--real` option also sets the real user and group IDs to match the effective IDs, for any target user or group.
 
-For example:
-```
-#!/usr/bin/exec-suid --real -- /bin/bash
-```
+Avoid `--real` unless necessary, because it disables some setuid protections, including glibc's secure-execution mode (`AT_SECURE=0`).
 
-This may be necessary if the interpreter you are using automatically sets the effective user id to the real user id, like `bash` (you can alternatively use the `-p` option to disable this behavior, see [Bash Interpreter](#Bash)).
+For Bash, prefer `#!/usr/bin/exec-suid -- /bin/bash -p` to retain privileges without `--real` (see [Bash](#bash)).
 
 This also has implications for the ["dumpable" process attribute](https://man7.org/linux/man-pages/man2/PR_SET_DUMPABLE.2const.html) which may be relevant in some contexts (e.g., namespaces, ptrace).
 
@@ -166,9 +162,16 @@ The default environment is restricted to a safe subset:
 
 - `PATH` is read from `/etc/environment`. If `/etc/environment` does not set `PATH`, `exec-suid` uses `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`.
 - From the new effective user's `/etc/passwd` entry: `USER`, `LOGNAME`, `HOME`, and `SHELL`.
-- Preserved from the caller if set, otherwise default values: `TERM` (default: `unknown`), `LANG` (default: `C.UTF-8`).
-- Preserved from the caller if set, otherwise unset: `LANGUAGE`, `TZ`, `DISPLAY`, `LS_COLORS`, and all `LC_*` variables.
+- Preserved from the caller if valid, otherwise default values: `TERM` (default: `unknown`), `LANG` (default: `C.UTF-8`).
+- Preserved from the caller if valid, otherwise unset: `LANGUAGE`, `TZ`, `DISPLAY`, `LS_COLORS`, `LC_ALL`, and the POSIX locale categories `LC_CTYPE`, `LC_NUMERIC`, `LC_TIME`, `LC_COLLATE`, `LC_MONETARY`, and `LC_MESSAGES`.
 - All other variables unset.
+
+In both modes, inherited values are preserved as bytes, limited to 8 KiB, and must contain no ASCII control bytes.
+Additional rules depend on the variable:
+
+- `TERM`, `LANG`, `LANGUAGE`, and the allowed `LC_*` variables must contain neither `/` nor `..`.
+- `TZ` must not contain `..`. An optional leading `:` is ignored when checking paths. Absolute paths are limited to `/etc/localtime`; internal `/` characters are allowed for zone names and POSIX rules.
+- `DISPLAY` and `LS_COLORS` have no additional restrictions.
 
 Set additional environment variables in the shebang with repeated `--env KEY=VALUE` options; these override the default safe environment.
 

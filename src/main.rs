@@ -6,7 +6,7 @@ use nix::sys::stat::{self, Mode, SFlag};
 use nix::sys::statvfs::{self, FsFlags};
 use nix::unistd::{self, AccessFlags, Gid, Uid, User};
 use std::collections::BTreeMap;
-use std::ffi::CString;
+use std::ffi::{CString, OsString};
 use std::fs::{self, File};
 use std::io::{self, BufRead, Read, Seek};
 use std::os::{
@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 use std::{env, process};
 
 const DEFAULT_PATH: &str = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+const MAX_ENV_VALUE_SIZE: usize = 8 * 1024;
 const MAX_HEADER_SIZE: usize = 64 * 1024;
 const MAX_SCRIPT_SIZE: u64 = 64 * 1024 * 1024;
 const MEMFD_NAME_MAX: usize = nix::libc::NAME_MAX as usize - b"memfd:".len();
@@ -428,20 +429,40 @@ fn build_safe_env(euid: Uid, env_overrides: &[String]) -> Result<Vec<CString>, S
         None => (format!("#{}", euid.as_raw()), "/".into(), "/bin/sh".into()),
     };
 
-    let mut env_vars = BTreeMap::from([
-        ("USER".to_string(), username.clone()),
-        ("LOGNAME".to_string(), username),
-        ("HOME".to_string(), home),
-        ("SHELL".to_string(), shell),
-    ]);
+    let defaults: &[(&str, &str)] = &[
+        ("USER", &username),
+        ("LOGNAME", &username),
+        ("HOME", &home),
+        ("SHELL", &shell),
+        ("TERM", "unknown"),
+        ("LANG", "C.UTF-8"),
+    ];
+    let mut env_vars: BTreeMap<OsString, OsString> = defaults
+        .iter()
+        .map(|&(key, value)| (OsString::from(key), OsString::from(value)))
+        .collect();
 
-    for (key, default) in [("TERM", "unknown"), ("LANG", "C.UTF-8")] {
-        env_vars.insert(key.into(), env::var(key).unwrap_or_else(|_| default.into()));
-    }
+    env_vars.extend(env::vars_os().filter(|(key, value)| {
+        let Some(key) = key.to_str() else {
+            return false;
+        };
+        let value = value.as_bytes();
+        if value.len() > MAX_ENV_VALUE_SIZE || value.iter().any(u8::is_ascii_control) {
+            return false;
+        }
 
-    env_vars.extend(env::vars().filter(|(key, _)| {
-        matches!(key.as_str(), "LANGUAGE" | "TZ" | "DISPLAY" | "LS_COLORS")
-            || key.starts_with("LC_")
+        let has_slash = value.contains(&b'/');
+        let has_dotdot = value.windows(2).any(|bytes| bytes == b"..");
+        match key {
+            "DISPLAY" | "LS_COLORS" => true,
+            "TZ" => {
+                let zone = value.strip_prefix(b":").unwrap_or(value);
+                !has_dotdot && (!zone.starts_with(b"/") || zone == b"/etc/localtime")
+            }
+            "TERM" | "LANG" | "LANGUAGE" | "LC_ALL" | "LC_CTYPE" | "LC_NUMERIC" | "LC_TIME"
+            | "LC_COLLATE" | "LC_MONETARY" | "LC_MESSAGES" => !has_slash && !has_dotdot,
+            _ => false,
+        }
     }));
 
     for env_override in env_overrides {
@@ -451,17 +472,19 @@ fn build_safe_env(euid: Uid, env_overrides: &[String]) -> Result<Vec<CString>, S
         if key.is_empty() || key.contains('\0') {
             return Err(format!("invalid environment variable name: {key}"));
         }
-        env_vars.insert(key.to_string(), value.to_string());
+        env_vars.insert(key.into(), value.into());
     }
 
-    env_vars
-        .entry("PATH".into())
-        .or_insert_with(|| environment_file_path().unwrap_or_else(|| DEFAULT_PATH.into()));
+    env_vars.entry("PATH".into()).or_insert_with(|| {
+        environment_file_path()
+            .unwrap_or_else(|| DEFAULT_PATH.into())
+            .into()
+    });
 
     env_vars
         .into_iter()
         .map(|(key, value)| {
-            CString::new(format!("{key}={value}"))
+            CString::new([key.as_bytes(), b"=", value.as_bytes()].concat())
                 .map_err(|_| "environment contains NUL byte".to_string())
         })
         .collect()
